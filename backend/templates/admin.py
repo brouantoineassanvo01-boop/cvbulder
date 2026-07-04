@@ -53,24 +53,24 @@ class CVTemplateAdmin(admin.ModelAdmin):
         if obj.is_active:
             return format_html(
                 '<span style="background-color: #28a745; color: white; padding: 3px 8px; '
-                'border-radius: 3px; font-size: 11px;">Actif</span>'
+                'border-radius: 3px; font-size: 11px;">{}</span>', "Actif"
             )
         return format_html(
             '<span style="background-color: #6c757d; color: white; padding: 3px 8px; '
-            'border-radius: 3px; font-size: 11px;">Inactif</span>'
+            'border-radius: 3px; font-size: 11px;">{}</span>', "Inactif"
         )
     status_badge.short_description = "Statut"
-    
+
     def is_premium_badge(self, obj):
         """Affiche le badge premium"""
         if obj.is_premium:
             return format_html(
                 '<span style="background-color: #ffc107; color: black; padding: 3px 8px; '
-                'border-radius: 3px; font-size: 11px;">🔒 Premium</span>'
+                'border-radius: 3px; font-size: 11px;">{}</span>', "🔒 Premium"
             )
         return format_html(
             '<span style="background-color: #17a2b8; color: white; padding: 3px 8px; '
-            'border-radius: 3px; font-size: 11px;">Gratuit</span>'
+            'border-radius: 3px; font-size: 11px;">{}</span>', "Gratuit"
         )
     is_premium_badge.short_description = "Type"
     
