@@ -251,9 +251,10 @@ class Command(BaseCommand):
     help = "Rase l'ancien catalogue et crée 21 modèles bien remplis (Prestige en tête)."
 
     def handle(self, *args, **options):
-        razed = CVTemplate.objects.update(is_active=False)
-        self.stdout.write(f"Anciens modèles désactivés : {razed}")
-
+        # NON DESTRUCTIF : on met à jour/crée chaque modèle SANS désactiver le
+        # catalogue d'abord (sinon la galerie se vide pendant les longues minutes
+        # de régénération des aperçus, et les visiteurs voient les modèles
+        # disparaître un à un). Les modèles obsolètes sont désactivés À LA FIN.
         for index, (slug, name, category, premium, persona_index) in enumerate(CATALOG):
             persona, photo_index = PERSONAS[persona_index]
             data = dict(persona)
@@ -277,6 +278,13 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"✓ {slug} — {persona['job_title']} ({len(png)} o)"))
             except Exception as exc:  # noqa: BLE001
                 self.stdout.write(self.style.ERROR(f"✗ aperçu {slug} : {exc}"))
+
+        # Désactivation des modèles hors catalogue, seulement maintenant que
+        # les 21 modèles sont en place.
+        expected = [slug for slug, *_ in CATALOG]
+        razed = CVTemplate.objects.exclude(slug__in=expected).filter(is_active=True).update(is_active=False)
+        if razed:
+            self.stdout.write(f"Modèles hors catalogue désactivés : {razed}")
 
         # NB : l'image de la page d'accueil (frontend/src/assets/cv-assanvo-preview.png)
         # est le vrai CV de l'utilisateur et n'est PAS régénérée ici.

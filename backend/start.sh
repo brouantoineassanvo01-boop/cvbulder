@@ -5,42 +5,27 @@ mkdir -p "${DJANGO_MEDIA_ROOT:-/app/media}"
 
 python manage.py migrate --noinput
 
-# Reseed si le catalogue public n'existe pas en base OU si ses aperçus ne sont
-# plus réellement présents sur le disque persistant.
-# En ARRIÈRE-PLAN : le seed rend 21 aperçus WeasyPrint (plusieurs minutes sur
-# un petit CPU) et ne doit jamais retarder l'ouverture du port, sinon le
-# health check Render échoue et l'API reste injoignable.
-needs_seed_catalog() {
+# Reseed uniquement si le catalogue en BASE est incomplet (nouveau modèle,
+# première installation). PAS de vérification des fichiers d'aperçu : sur les
+# hébergements sans disque persistant (plan Free), le dossier media disparaît
+# à CHAQUE réveil — vérifier les fichiers relançait le seed complet (21 rendus
+# WeasyPrint, plusieurs minutes de CPU) à chaque redémarrage. L'affichage des
+# aperçus est garanti par les fichiers STATIQUES embarqués dans l'image
+# (backend/static/templates/previews/) via le repli de CVTemplate.preview_url.
+# En ARRIÈRE-PLAN : le seed ne doit jamais retarder l'ouverture du port, sinon
+# le health check Render échoue et l'API reste injoignable.
+catalog_complete() {
     python manage.py shell -c '
 from templates.models import CVTemplate
 from templates.management.commands.seed_catalog import CATALOG
 
 expected_slugs = [slug for slug, *_ in CATALOG]
-templates = {
-    template.slug: template
-    for template in CVTemplate.objects.filter(is_active=True, slug__in=expected_slugs)
-}
-
-if len(templates) != len(expected_slugs):
-    raise SystemExit(1)
-
-for slug in expected_slugs:
-    template = templates.get(slug)
-    field = getattr(template, "preview_full", None)
-    name = getattr(field, "name", "")
-    if not name:
-        raise SystemExit(1)
-    try:
-        if not field.storage.exists(name):
-            raise SystemExit(1)
-    except Exception:
-        raise SystemExit(1)
-
-raise SystemExit(0)
+active = CVTemplate.objects.filter(is_active=True, slug__in=expected_slugs).count()
+raise SystemExit(0 if active == len(expected_slugs) else 1)
 '
 }
 
-if ! needs_seed_catalog; then
+if ! catalog_complete; then
     (python manage.py seed_catalog || echo "seed_catalog a échoué (l'API reste fonctionnelle)") &
 fi
 
