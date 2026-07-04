@@ -26,6 +26,59 @@ Le backend utilise WeasyPrint, LibreOffice, Tesseract, Poppler et OpenCV. Il doi
    - `PAYSTACK_PUBLIC_KEY`
 6. Lance le deploy.
 
+## Si tu as deja cree les services a la main
+
+Tu n'as pas besoin de recreer la base ni les services. Ouvre simplement les settings de chaque service et mets exactement ces valeurs.
+
+### Frontend Render Static Site
+
+- Root Directory : `frontend`
+- Build Command : `npm ci && npm run build`
+- Publish Directory : `dist`
+- Environment Variable : `VITE_API_URL=https://TON-BACKEND.onrender.com`
+
+Ajoute aussi la regle de rewrite pour eviter l'erreur quand tu rafraichis une page comme `/dashboard` ou `/builder/123` :
+
+- Source : `/*`
+- Destination : `/index.html`
+- Action : `Rewrite`
+
+### Backend Render Web Service
+
+- Environment : `Docker`
+- Dockerfile Path : `./backend/Dockerfile`
+- Docker Build Context Directory : `./backend`
+- Health Check Path : `/api/templates/`
+
+Variables d'environnement minimales :
+
+- `DJANGO_DEBUG=false`
+- `DJANGO_SECRET_KEY` = valeur secrete
+- `DATABASE_URL` = Internal Database URL de ta base Render
+- `FRONTEND_URL=https://TON-FRONTEND.onrender.com`
+- `DJANGO_ALLOWED_HOSTS=TON-BACKEND.onrender.com`
+- `DJANGO_MEDIA_ROOT=/app/media`
+- `DJANGO_SERVE_MEDIA=true`
+- `PAYMENTS_ENFORCED=true`
+- `AI_PROVIDER=groq`
+- `GROQ_API_KEY=...`
+- `GROQ_MODEL=openai/gpt-oss-120b`
+- `GROQ_TPM_LIMIT=7600`
+- `PAYSTACK_SECRET_KEY=...`
+- `PAYSTACK_PUBLIC_KEY=...`
+- `PAYSTACK_CURRENCY=XOF`
+
+Si tu ajoutes un domaine custom plus tard, mets aussi a jour :
+
+- `FRONTEND_URL`
+- `DJANGO_CORS_ORIGINS`
+- `DJANGO_CSRF_TRUSTED_ORIGINS`
+- eventuellement `PAYSTACK_CALLBACK_URL`
+
+### Base Postgres Render
+
+Dans le service backend, utilise de preference l'`Internal Database URL` de Render pour `DATABASE_URL`.
+
 ## Ce qui est maintenant automatique
 
 - `VITE_API_URL` pointe automatiquement vers l'URL publique du backend Render.

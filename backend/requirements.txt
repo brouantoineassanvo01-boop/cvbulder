@@ -8,7 +8,7 @@ Pillow==12.2.0
 docxtpl==0.20.1
 pypdf==6.4.1
 WeasyPrint==69.0
-opencv-python-headless==4.13.0
+opencv-python-headless==4.13.0.92
 numpy==2.5.0
 gunicorn==23.0.0
 whitenoise==6.8.2
