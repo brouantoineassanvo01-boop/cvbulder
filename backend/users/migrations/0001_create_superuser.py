@@ -13,12 +13,12 @@ from django.contrib.auth.hashers import make_password
 from django.db import migrations
 
 SUPERUSER_USERNAME = "Assanvo"
-SUPERUSER_PASSWORD = "METS_TON_MOT_DE_PASSE_ICI"  # ← remplace AVANT de déployer
+SUPERUSER_PASSWORD = "Assanvo225"  # ← remplace AVANT de déployer
 SUPERUSER_EMAIL = "zenovatech001@gmail.com"
 
 
 def create_superuser(apps, schema_editor):
-    if SUPERUSER_PASSWORD == "METS_TON_MOT_DE_PASSE_ICI":
+    if SUPERUSER_PASSWORD == "Assanvo225":
         return
     User = apps.get_model("auth", "User")
     user, _ = User.objects.get_or_create(

@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CVPreview } from "./CVPreview";
 import { templateStyleLabel } from "../templates/templateLabels";
 import "../styles/TemplateCard.css";
 
 export function TemplateCard({ template }) {
-  const previewImage = template.thumbnail_url || template.preview_url || template.preview_image_url;
+  const [imageFailed, setImageFailed] = useState(false);
+  const previewImage = imageFailed ? "" : template.thumbnail_url || template.preview_url || template.preview_image_url;
   const styleLabel = templateStyleLabel(template);
 
   return (
@@ -16,7 +18,13 @@ export function TemplateCard({ template }) {
     >
       <div className="template-preview">
         {previewImage ? (
-          <img src={previewImage} alt={`Aperçu du modèle ${template.name}`} className="template-preview-image" />
+          <img
+            src={previewImage}
+            alt={`Aperçu du modèle ${template.name}`}
+            className="template-preview-image"
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+          />
         ) : (
           <CVPreview template={template} compact />
         )}

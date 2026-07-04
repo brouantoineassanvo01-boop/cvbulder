@@ -76,7 +76,7 @@ class CVTemplate(models.Model):
             return self.preview_full.url
         if self.thumbnail:
             return self.thumbnail.url
-        return self.preview_image_url or "/static/default-template-preview.png"
+        return self.preview_image_url or ""
     
     @property
     def thumbnail_url(self):
