@@ -1,8 +1,15 @@
 from django.contrib import admin
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
 from .models import AccessGrant, CV, PaymentTransaction
+
+
+def _user_admin_link(obj):
+    """Lien vers la fiche admin de l'utilisateur (suit l'URL réelle de l'admin)."""
+    url = reverse("admin:auth_user_change", args=[obj.user_id])
+    return format_html('<a href="{}">{}</a>', url, obj.user)
 
 
 @admin.register(CV)
@@ -37,7 +44,7 @@ class CVAdmin(admin.ModelAdmin):
 
     @admin.display(description="Utilisateur", ordering="user__username")
     def user_link(self, obj):
-        return format_html('<a href="/admin/auth/user/{}/change/">{}</a>', obj.user_id, obj.user)
+        return _user_admin_link(obj)
 
     @admin.display(description="PDF")
     def pdf_link(self, obj):
@@ -69,7 +76,7 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
 
     @admin.display(description="Utilisateur", ordering="user__username")
     def user_link(self, obj):
-        return format_html('<a href="/admin/auth/user/{}/change/">{}</a>', obj.user_id, obj.user)
+        return _user_admin_link(obj)
 
     @admin.display(description="Montant", ordering="amount_xof")
     def amount_display(self, obj):
@@ -106,7 +113,7 @@ class AccessGrantAdmin(admin.ModelAdmin):
 
     @admin.display(description="Utilisateur", ordering="user__username")
     def user_link(self, obj):
-        return format_html('<a href="/admin/auth/user/{}/change/">{}</a>', obj.user_id, obj.user)
+        return _user_admin_link(obj)
 
     @admin.display(description="État")
     def active_badge(self, obj):

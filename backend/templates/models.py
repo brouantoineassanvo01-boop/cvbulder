@@ -69,18 +69,53 @@ class CVTemplate(models.Model):
     def __str__(self):
         return f"{self.name} ({self.get_category_display()})"
     
+    def _static_preview_url(self):
+        """Aperçu embarqué dans l'image Docker (`backend/static/templates/previews/`).
+        Sert de repli quand les fichiers médias ont disparu : les hébergements sans
+        disque persistant (plan gratuit Render) perdent le dossier media à chaque
+        redémarrage, alors que les statiques sont figés dans l'image."""
+        relative = f"templates/previews/{self.slug}.png"
+        try:
+            from django.contrib.staticfiles.storage import staticfiles_storage
+
+            if staticfiles_storage.exists(relative):
+                return staticfiles_storage.url(relative)
+        except Exception:
+            pass
+        try:
+            from django.contrib.staticfiles.finders import find
+            from django.templatetags.static import static as static_url
+
+            if find(relative):
+                return static_url(relative)
+        except Exception:
+            pass
+        return ""
+
+    @staticmethod
+    def _file_exists(field):
+        """Vrai si le champ fichier pointe vers un fichier réellement présent."""
+        try:
+            return bool(field) and field.storage.exists(field.name)
+        except Exception:
+            return False
+
     @property
     def preview_url(self):
-        """Retourne l'URL de l'aperçu (priorité: preview_full > thumbnail > preview_image_url)"""
-        if self.preview_full:
+        """URL de l'aperçu (priorité: preview_full > thumbnail > statique embarqué > preview_image_url).
+        Les fichiers manquants sur le disque sont ignorés au profit du repli statique."""
+        if self._file_exists(self.preview_full):
             return self.preview_full.url
-        if self.thumbnail:
+        if self._file_exists(self.thumbnail):
             return self.thumbnail.url
+        static = self._static_preview_url()
+        if static:
+            return static
         return self.preview_image_url or ""
-    
+
     @property
     def thumbnail_url(self):
         """Retourne l'URL de la miniature"""
-        if self.thumbnail:
+        if self._file_exists(self.thumbnail):
             return self.thumbnail.url
         return self.preview_url

@@ -154,6 +154,10 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# Fichiers statiques embarqués dans l'image (ex. aperçus du catalogue) :
+# servis par WhiteNoise, ils survivent aux redémarrages des hébergements
+# sans disque persistant (plan gratuit Render).
+STATICFILES_DIRS = [BASE_DIR / "static"]
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {
