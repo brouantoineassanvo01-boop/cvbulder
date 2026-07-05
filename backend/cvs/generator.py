@@ -23,6 +23,8 @@ from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt, RGBColor
 
+from cvs.system_bins import candidate_libreoffice_binaries, libreoffice_not_found_message
+
 
 SECTION_ORDER = ["profile", "experiences", "education", "skills", "languages", "hobbies"]
 SIDEBAR_SECTIONS = {"skills", "languages", "hobbies"}
@@ -471,22 +473,29 @@ def _convert_docx_to_pdf(docx_bytes, base_name):
         outdir.mkdir()
         profile.mkdir()
         docx_path.write_bytes(docx_bytes)
-        command = [
-            settings.LIBREOFFICE_BINARY,
-            "--headless",
-            f"-env:UserInstallation=file://{profile}",
-            "--convert-to",
-            "pdf",
-            "--outdir",
-            str(outdir),
-            str(docx_path),
-        ]
-        completed = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
         pdf_path = outdir / f"{base_name}.pdf"
-        if completed.returncode != 0 or not pdf_path.exists():
-            message = completed.stderr or completed.stdout or "conversion PDF impossible"
-            raise RuntimeError(message.strip())
-        return pdf_path.read_bytes()
+        binaries = candidate_libreoffice_binaries()
+        if not binaries:
+            raise FileNotFoundError(libreoffice_not_found_message())
+
+        errors = []
+        for binary in binaries:
+            pdf_path.unlink(missing_ok=True)
+            command = [
+                binary,
+                "--headless",
+                f"-env:UserInstallation=file://{profile}",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                str(outdir),
+                str(docx_path),
+            ]
+            completed = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
+            if completed.returncode == 0 and pdf_path.exists():
+                return pdf_path.read_bytes()
+            errors.append((completed.stderr or completed.stdout or f"{binary}: conversion PDF impossible").strip())
+        raise RuntimeError(" | ".join(errors))
 
 def _filename_base(cv):
     base = re.sub(r"[^a-zA-Z0-9]+", "_", cv.title or "cv").strip("_").lower() or "cv"

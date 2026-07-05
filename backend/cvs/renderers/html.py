@@ -11,6 +11,8 @@ from urllib.parse import unquote, urlparse
 from django.conf import settings
 from django.template.loader import render_to_string
 
+from cvs.system_bins import candidate_libreoffice_binaries, libreoffice_not_found_message
+
 
 class UnsupportedHTMLTemplate(Exception):
     """Le modèle choisi n'a pas encore de renderer HTML/CSS."""
@@ -780,22 +782,29 @@ def _pdf_with_libreoffice(html_path, pdf_path, tmp):
     profile = tmp / "lo-profile"
     outdir.mkdir()
     profile.mkdir()
-    command = [
-        getattr(settings, "LIBREOFFICE_BINARY", "soffice"),
-        "--headless",
-        f"-env:UserInstallation=file://{profile}",
-        "--convert-to",
-        "pdf",
-        "--outdir",
-        str(outdir),
-        str(html_path),
-    ]
-    completed = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False, env=_subprocess_env(tmp))
     converted = outdir / pdf_path.name
-    if completed.returncode != 0 or not converted.exists():
-        message = completed.stderr or completed.stdout or "LibreOffice n'a pas produit de PDF."
-        raise HTMLRendererUnavailable(message.strip())
-    return converted.read_bytes()
+    binaries = candidate_libreoffice_binaries()
+    if not binaries:
+        raise HTMLRendererUnavailable(libreoffice_not_found_message())
+
+    errors = []
+    for binary in binaries:
+        converted.unlink(missing_ok=True)
+        command = [
+            binary,
+            "--headless",
+            f"-env:UserInstallation=file://{profile}",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(outdir),
+            str(html_path),
+        ]
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False, env=_subprocess_env(tmp))
+        if completed.returncode == 0 and converted.exists():
+            return converted.read_bytes()
+        errors.append((completed.stderr or completed.stdout or f"{binary}: conversion PDF impossible").strip())
+    raise HTMLRendererUnavailable(" | ".join(errors))
 
 
 def _preferred_engines():

@@ -10,6 +10,8 @@ from django.utils.html import format_html
 admin.site.site_header = "Administration CVBuilder"
 admin.site.site_title = "CVBuilder"
 admin.site.index_title = "Pilotage de l'application"
+# Page d'accueil : tableau de bord temps réel (config/templates/admin/dashboard_index.html).
+admin.site.index_template = "admin/dashboard_index.html"
 
 
 admin.site.unregister(User)

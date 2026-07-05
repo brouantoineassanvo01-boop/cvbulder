@@ -1,25 +1,47 @@
 """
-Rejoue la création/promotion du compte administrateur.
+Migration autonome pour promouvoir un compte administrateur si les variables
+DJANGO_SUPERUSER_* sont fournies.
 
-Nécessaire car la migration 0001 a déjà été enregistrée comme appliquée en
-production alors que sa condition de garde l'avait rendue inopérante —
-Django ne rejoue jamais une migration déjà appliquée. Cette migration
-réutilise le nom, l'email et le MOT DE PASSE définis dans 0001 : rien à
-re-saisir ici.
-
-APRÈS LE DÉPLOIEMENT : supprime ce fichier ET 0001_create_superuser.py,
-puis redéploie. Le compte admin reste en base.
+Le fichier 0001_create_superuser.py a été retiré du working tree. Garder cette
+migration autoportée évite de casser le chargement des migrations sur un clone
+local tout en restant idempotent.
 """
-from importlib import import_module
+import os
 
+from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.db import migrations
 
-_first = import_module("users.migrations.0001_create_superuser")
+
+def create_superuser(apps, schema_editor):
+    username = os.getenv("DJANGO_SUPERUSER_USERNAME", "").strip()
+    password = os.getenv("DJANGO_SUPERUSER_PASSWORD", "").strip()
+    email = os.getenv("DJANGO_SUPERUSER_EMAIL", "").strip()
+
+    if not username or not password:
+        return
+
+    app_label, model_name = settings.AUTH_USER_MODEL.split(".")
+    User = apps.get_model(app_label, model_name)
+    user, _ = User.objects.get_or_create(
+        username=username,
+        defaults={"email": email},
+    )
+    user.email = email or user.email
+    user.password = make_password(password)
+    user.is_staff = True
+    user.is_superuser = True
+    user.is_active = True
+    user.save()
+
+
+def noop(apps, schema_editor):
+    pass
 
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("users", "0001_create_superuser"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
-    operations = [migrations.RunPython(_first.create_superuser, _first.noop)]
+    operations = [migrations.RunPython(create_superuser, noop)]

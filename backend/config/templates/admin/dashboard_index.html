@@ -1,0 +1,175 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+<div id="zen-dash">
+  <style>
+    /* Le dashboard occupe toute la largeur : l'admin Django limite l'accueil à
+       600px (.dashboard #content) et réserve une colonne « Actions récentes »
+       (doublon de notre Journal) — on neutralise les deux. */
+    body.dashboard #content { width: auto !important; }
+    body.dashboard #content-related { display: none !important; }
+    body.dashboard #content-main { width: 100% !important; float: none !important; }
+    #zen-dash { margin-bottom: 28px; --zd-emerald: #059669; --zd-blue: #2563eb; --zd-ok: #059669; --zd-warn: #b26a00; }
+    html[data-theme="dark"] #zen-dash { --zd-emerald: #0f9d72; --zd-blue: #3b82f6; --zd-ok: #34d399; --zd-warn: #fbbf24; }
+    @media (prefers-color-scheme: dark) {
+      html[data-theme="auto"] #zen-dash { --zd-emerald: #0f9d72; --zd-blue: #3b82f6; --zd-ok: #34d399; --zd-warn: #fbbf24; }
+    }
+    #zen-dash .zd-head { display: flex; align-items: baseline; gap: 12px; margin: 4px 0 14px; }
+    #zen-dash .zd-head h2 { margin: 0; font-size: 1.15rem; }
+    #zen-dash .zd-updated { font-size: .78rem; color: var(--body-quiet-color, #666); }
+
+    #zen-dash .zd-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    #zen-dash .zd-card { background: var(--module-bg, var(--body-bg, #fff)); border: 1px solid var(--hairline-color, var(--border-color, #e5e5e5)); border-radius: 10px; padding: 12px 14px; }
+    #zen-dash .zd-card .lbl { font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--body-quiet-color, #666); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    #zen-dash .zd-card .val { font-size: 1.65rem; font-weight: 700; line-height: 1.1; color: var(--body-fg, #333); font-variant-numeric: tabular-nums; }
+    #zen-dash .zd-card .sub { font-size: .76rem; color: var(--body-quiet-color, #666); margin-top: 3px; }
+    #zen-dash .zd-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--zd-ok); display: inline-block; animation: zd-pulse 2s infinite; }
+    @keyframes zd-pulse { 50% { opacity: .35; } }
+
+    #zen-dash .zd-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin-top: 10px; }
+    #zen-dash .zd-panel { background: var(--module-bg, var(--body-bg, #fff)); border: 1px solid var(--hairline-color, var(--border-color, #e5e5e5)); border-radius: 10px; padding: 12px 14px; }
+    #zen-dash .zd-panel h3 { margin: 0 0 8px; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: var(--body-quiet-color, #666); font-weight: 700; }
+
+    #zen-dash .zd-chart { display: flex; align-items: flex-end; gap: 2px; height: 88px; border-bottom: 1px solid var(--hairline-color, #e5e5e5); }
+    #zen-dash .zd-chart .bar { flex: 1; min-width: 6px; border-radius: 4px 4px 0 0; transition: height .4s ease; position: relative; }
+    #zen-dash .zd-chart .bar:hover { filter: brightness(1.18); }
+    #zen-dash .zd-chart[data-hue="emerald"] .bar { background: var(--zd-emerald); }
+    #zen-dash .zd-chart[data-hue="blue"] .bar { background: var(--zd-blue); }
+    #zen-dash .zd-axis { display: flex; gap: 2px; margin-top: 3px; }
+    #zen-dash .zd-axis span { flex: 1; font-size: .6rem; text-align: center; color: var(--body-quiet-color, #888); overflow: hidden; white-space: nowrap; }
+    #zen-dash .zd-tip { position: fixed; z-index: 1000; pointer-events: none; background: var(--body-fg, #333); color: var(--body-bg, #fff); font-size: .74rem; padding: 3px 8px; border-radius: 5px; transform: translate(-50%, -130%); display: none; white-space: nowrap; }
+
+    #zen-dash .zd-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    #zen-dash .zd-pill { font-size: .76rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--zd-emerald); color: var(--zd-emerald); }
+    #zen-dash .zd-empty { font-size: .8rem; color: var(--body-quiet-color, #888); }
+
+    #zen-dash table.zd-list { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    #zen-dash table.zd-list td { padding: 4px 6px 4px 0; border-bottom: 1px solid var(--hairline-color, #eee); color: var(--body-fg, #333); }
+    #zen-dash table.zd-list tr:last-child td { border-bottom: 0; }
+    #zen-dash table.zd-list .muted { color: var(--body-quiet-color, #888); }
+    #zen-dash .st-ok { color: var(--zd-ok); font-weight: 600; }
+    #zen-dash .st-warn { color: var(--zd-warn); font-weight: 600; }
+  </style>
+
+  <div class="zd-head">
+    <h2>Tableau de bord</h2>
+    <span class="zd-updated" id="zd-updated">chargement…</span>
+  </div>
+
+  <div class="zd-cards">
+    <div class="zd-card"><div class="lbl"><span class="zd-dot"></span>En ligne</div><div class="val" id="k-online">–</div><div class="sub">actifs &lt; 5 min</div></div>
+    <div class="zd-card"><div class="lbl">Utilisateurs</div><div class="val" id="k-users">–</div><div class="sub" id="k-users-sub">–</div></div>
+    <div class="zd-card"><div class="lbl">CV créés</div><div class="val" id="k-cvs">–</div><div class="sub" id="k-cvs-sub">–</div></div>
+    <div class="zd-card"><div class="lbl">CV générés</div><div class="val" id="k-generated">–</div><div class="sub" id="k-unlocked">–</div></div>
+    <div class="zd-card"><div class="lbl">Revenus</div><div class="val" id="k-revenue">–</div><div class="sub" id="k-revenue-sub">–</div></div>
+    <div class="zd-card"><div class="lbl">Accès actifs</div><div class="val" id="k-access">–</div><div class="sub" id="k-access-sub">–</div></div>
+  </div>
+
+  <div class="zd-row">
+    <div class="zd-panel">
+      <h3>Inscriptions — 14 jours</h3>
+      <div class="zd-chart" data-hue="emerald" id="chart-signups"></div>
+      <div class="zd-axis" id="axis-signups"></div>
+    </div>
+    <div class="zd-panel">
+      <h3>CV créés — 14 jours</h3>
+      <div class="zd-chart" data-hue="blue" id="chart-cvs"></div>
+      <div class="zd-axis" id="axis-cvs"></div>
+    </div>
+  </div>
+
+  <div class="zd-row">
+    <div class="zd-panel">
+      <h3>Connectés maintenant</h3>
+      <div class="zd-pills" id="online-names"><span class="zd-empty">personne pour l'instant</span></div>
+    </div>
+    <div class="zd-panel">
+      <h3>Derniers inscrits</h3>
+      <table class="zd-list" id="recent-users"></table>
+    </div>
+    <div class="zd-panel">
+      <h3>Derniers paiements</h3>
+      <table class="zd-list" id="recent-payments"></table>
+    </div>
+    <div class="zd-panel">
+      <h3>Derniers CV</h3>
+      <table class="zd-list" id="recent-cvs"></table>
+    </div>
+  </div>
+
+  <div class="zd-tip" id="zd-tip"></div>
+
+  <script>
+  (function () {
+    const url = "{% url 'admin-stats' %}";
+    const tip = document.getElementById("zd-tip");
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const set = (id, v) => { document.getElementById(id).textContent = v; };
+
+    function chart(chartId, axisId, series) {
+      const max = Math.max(1, ...series.map((p) => p.value));
+      const box = document.getElementById(chartId);
+      const axis = document.getElementById(axisId);
+      box.innerHTML = series.map((p) =>
+        `<div class="bar" style="height:${Math.max(3, Math.round((p.value / max) * 100))}%" data-tip="${esc(p.day)} : ${p.value}"></div>`
+      ).join("");
+      axis.innerHTML = series.map((p, i) =>
+        `<span>${i % 3 === 0 ? esc(p.day.slice(0, 5)) : ""}</span>`
+      ).join("");
+      box.querySelectorAll(".bar").forEach((bar) => {
+        bar.addEventListener("mousemove", (e) => {
+          tip.textContent = bar.dataset.tip;
+          tip.style.display = "block";
+          tip.style.left = e.clientX + "px";
+          tip.style.top = e.clientY + "px";
+        });
+        bar.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+      });
+    }
+
+    function rows(tableId, items, render) {
+      document.getElementById(tableId).innerHTML =
+        items.length ? items.map(render).join("") : '<tr><td class="muted">rien pour l’instant</td></tr>';
+    }
+
+    function refresh() {
+      fetch(url, { credentials: "same-origin" })
+        .then((r) => r.json())
+        .then((d) => {
+          set("zd-updated", "mis à jour à " + d.generated_at + " · auto toutes les 15 s");
+          set("k-online", d.users.online);
+          set("k-users", d.users.total);
+          set("k-users-sub", "+" + d.users.today + " aujourd’hui · +" + d.users.week + " sur 7 j");
+          set("k-cvs", d.cvs.total);
+          set("k-cvs-sub", "+" + d.cvs.today + " aujourd’hui");
+          set("k-generated", d.cvs.generated);
+          set("k-unlocked", d.cvs.unlocked + " débloqués");
+          set("k-revenue", d.payments.revenue_total.toLocaleString("fr-FR") + " F");
+          set("k-revenue-sub", "+" + d.payments.revenue_today.toLocaleString("fr-FR") + " F aujourd’hui · " + d.payments.pending_count + " en attente");
+          set("k-access", d.access.trials + d.access.weekly);
+          set("k-access-sub", d.access.trials + " essais · " + d.access.weekly + " abonnements");
+
+          chart("chart-signups", "axis-signups", d.series.signups);
+          chart("chart-cvs", "axis-cvs", d.series.cvs);
+
+          document.getElementById("online-names").innerHTML =
+            d.users.online_names.length
+              ? d.users.online_names.map((n) => `<span class="zd-pill">${esc(n)}</span>`).join("")
+              : '<span class="zd-empty">personne pour l’instant</span>';
+
+          rows("recent-users", d.recent.users, (u) => `<tr><td>${esc(u.name)}</td><td class="muted">${esc(u.when)}</td></tr>`);
+          rows("recent-payments", d.recent.payments, (p) =>
+            `<tr><td>${esc(p.user)}</td><td>${esc(p.amount)}</td><td class="${p.ok ? "st-ok" : "st-warn"}">${esc(p.status)}</td></tr>`);
+          rows("recent-cvs", d.recent.cvs, (c) =>
+            `<tr><td>${esc(c.title)}</td><td class="muted">${esc(c.user)}</td><td class="muted">${esc(c.when)}</td></tr>`);
+        })
+        .catch(() => { set("zd-updated", "erreur de rafraîchissement — nouvel essai…"); });
+    }
+
+    refresh();
+    setInterval(refresh, 15000);
+  })();
+  </script>
+</div>
+{{ block.super }}
+{% endblock %}

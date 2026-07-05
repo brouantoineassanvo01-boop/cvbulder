@@ -10,6 +10,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils.text import slugify
 from PIL import Image, ImageOps
 
+from cvs.system_bins import candidate_libreoffice_binaries, libreoffice_not_found_message
 from templates.models import CVTemplate
 from templates.services.template_library import align_template_manifest
 
@@ -123,21 +124,32 @@ def _convert_first_page_to_png(docx_path, tmpdir):
         "XDG_RUNTIME_DIR": str(runtime_dir),
     })
 
-    command = [
-        settings.LIBREOFFICE_BINARY,
-        "--headless",
-        f"-env:UserInstallation=file://{profile_dir}",
-        "--convert-to",
-        "pdf",
-        "--outdir",
-        str(pdf_dir),
-        str(docx_path),
-    ]
-    completed = subprocess.run(command, capture_output=True, text=True, timeout=90, check=False, env=env)
-    pdfs = sorted(pdf_dir.glob("*.pdf"))
-    if completed.returncode != 0 or not pdfs:
-        message = completed.stderr or completed.stdout or "conversion DOCX vers PDF impossible"
-        raise RuntimeError(message.strip())
+    binaries = candidate_libreoffice_binaries()
+    if not binaries:
+        raise RuntimeError(libreoffice_not_found_message())
+
+    errors = []
+    pdfs = []
+    for binary in binaries:
+        for pdf in pdf_dir.glob("*.pdf"):
+            pdf.unlink()
+        command = [
+            binary,
+            "--headless",
+            f"-env:UserInstallation=file://{profile_dir}",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(pdf_dir),
+            str(docx_path),
+        ]
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=90, check=False, env=env)
+        pdfs = sorted(pdf_dir.glob("*.pdf"))
+        if completed.returncode == 0 and pdfs:
+            break
+        errors.append((completed.stderr or completed.stdout or f"{binary}: conversion DOCX vers PDF impossible").strip())
+    if not pdfs:
+        raise RuntimeError(" | ".join(errors))
 
     output_base = tmpdir / "first-page"
     command = [

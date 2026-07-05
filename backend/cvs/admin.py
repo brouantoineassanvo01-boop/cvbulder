@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import AccessGrant, CV, PaymentTransaction
+from .models import AccessGrant, CV, PaymentTransaction, UserActivity
 
 
 def _user_admin_link(obj):
@@ -120,3 +120,31 @@ class AccessGrantAdmin(admin.ModelAdmin):
         if obj.expires_at is None or obj.expires_at > timezone.now():
             return format_html('<span style="color:#0a7d40;font-weight:600;">Actif</span>')
         return format_html('<span style="color:#b3261e;">Expiré</span>')
+
+
+@admin.register(UserActivity)
+class UserActivityAdmin(admin.ModelAdmin):
+    """Dernière activité par utilisateur (lecture seule) — base du « en ligne »."""
+
+    list_display = ("user_link", "last_seen", "online_badge")
+    search_fields = ("user__username", "user__email")
+    date_hierarchy = "last_seen"
+    list_select_related = ("user",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="Utilisateur", ordering="user__username")
+    def user_link(self, obj):
+        return _user_admin_link(obj)
+
+    @admin.display(description="État")
+    def online_badge(self, obj):
+        from datetime import timedelta
+
+        if obj.last_seen >= timezone.now() - timedelta(minutes=5):
+            return format_html('<span style="color:#0a7d40;font-weight:600;">● En ligne</span>')
+        return format_html('<span style="color:#6c757d;">Hors ligne</span>')

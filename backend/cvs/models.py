@@ -164,3 +164,19 @@ class AccessGrant(models.Model):
         if self.ai_credits is not None and self.ai_credits <= 0:
             return False
         return True
+
+
+class UserActivity(models.Model):
+    """Dernière activité API par utilisateur — alimente le compteur « en ligne »
+    du tableau de bord admin. Mise à jour par ActivityJWTAuthentication."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="activity")
+    last_seen = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["-last_seen"]
+        verbose_name = "Activité utilisateur"
+        verbose_name_plural = "Activités utilisateurs"
+
+    def __str__(self):
+        return f"{self.user_id} — {self.last_seen:%d/%m %H:%M}"

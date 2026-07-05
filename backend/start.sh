@@ -5,6 +5,10 @@ mkdir -p "${DJANGO_MEDIA_ROOT:-/app/media}"
 
 python manage.py migrate --noinput
 
+# Compte admin : créé/aligné à chaque démarrage depuis DJANGO_SUPERUSER_*
+# (variables Render). Mot de passe oublié => changer la variable + redémarrer.
+python manage.py bootstrap_admin || echo "bootstrap_admin a échoué (le démarrage continue)"
+
 # Reseed uniquement si le catalogue en BASE est incomplet (nouveau modèle,
 # première installation). PAS de vérification des fichiers d'aperçu : sur les
 # hébergements sans disque persistant (plan Free), le dossier media disparaît

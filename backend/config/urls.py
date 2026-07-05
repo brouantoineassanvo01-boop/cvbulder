@@ -22,8 +22,11 @@ from django.views.static import serve
 
 from django.conf import settings
 
+from config.admin_stats import admin_stats
+
 urlpatterns = [
     # Admin volontairement hors du chemin par défaut /admin/ (moins de bots).
+    path("zenadmin/stats.json", admin_stats, name="admin-stats"),
     path("zenadmin/", admin.site.urls),
     path("api/auth/", include("users.urls")),
     path("api/templates/", include("templates.urls")),
